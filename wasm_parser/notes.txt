@@ -1,0 +1,11 @@
+To parse, we will need a reader that is like a cursor through the bytes.
+The reader does not know wasm.
+
+The parser will first read the magic bytes, and generically read the header of the sections
+using the id to specifically parse.
+
+break the reader into mini readers in their own scope for some error handling
+
+the reader will not own the data (just looks in with spans), 
+there will be a data object in main.
+
