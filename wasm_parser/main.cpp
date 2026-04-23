@@ -1,11 +1,13 @@
-#include <cstdint>
-#include <stdexcept>
+#include "parser.hpp"
+
 #include <vector>
+/*
+std::vector<uint8_t> load_file(const std::string& path)  {
 
-struct Reader {
-  const std::vector<uint8_t> &size_t pos;
-  size_t size;
+}*/
 
-  uint8_t read_byte() { return data[pos++]; }
-  uint32_t read_u32_leb128() {}
+int main() {
+  std::vector<uint8_t> bytes = {0}; // load_file("fib.wasm");
+  parser p(bytes);
+  p.parse();
 }
