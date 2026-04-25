@@ -1,13 +1,18 @@
 #include "parser.hpp"
 
 #include <vector>
-/*
-std::vector<uint8_t> load_file(const std::string& path)  {
+#include <fstream>
 
-}*/
+std::vector<uint8_t> load_file(const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    return std::vector<uint8_t>(
+        std::istreambuf_iterator<char>(file),
+        std::istreambuf_iterator<char>()
+    );
+}
 
 int main() {
-  std::vector<uint8_t> bytes = {0}; // load_file("fib.wasm");
+  auto bytes = load_file("fib.wasm");
   parser p(bytes);
   p.parse();
 }
