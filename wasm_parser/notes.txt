@@ -9,3 +9,4 @@ break the reader into mini readers in their own scope for some error handling
 the reader will not own the data (just looks in with spans), 
 there will be a data object in main.
 
+Where will section data be stored for the output?

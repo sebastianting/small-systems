@@ -20,7 +20,7 @@ public:
 
   reader sub_reader(size_t length) {
     if (pos + length > data.size())
-      throw std::runtime_error("subreader is too long");
+      throw std::runtime_error("subreader window past data end");
 
     reader sub(data.subspan(pos, length));
     pos += length;
@@ -90,7 +90,14 @@ public:
     }
   }
 
-  void parse_header() {}
+  void parse_header() {
+    uint32_t magic = reader.read_byte() | reader.read_byte() << 8
+                   | reader.read_byte() << 16 | reader.read_byte() << 24;
+    uint32_t version = reader.read_byte() | reader.read_byte() << 8
+                     | reader.read_byte() << 16 | reader.read_byte() << 24;
+    if (magic   != 0x6D736100) throw std::runtime_error("Invalid magic header");
+    if (version != 0x00000001) throw std::runtime_error("Invalid Version");
+  }
 
   void parse_section() {
     uint8_t id = reader.read_byte();
@@ -107,9 +114,9 @@ public:
   }
 
   void parse_type_section(size_t size) {
-    class reader r = reader.sub_reader(size);
+    reader r = reader.sub_reader(size);
 
-    uint32_t count = r.read_byte();
+    uint32_t count = r.read_u32_leb128();
     for (uint32_t i = 0; i < count; i++) {
       if (r.read_byte() != 0x60) {
         throw std::runtime_error("type section invalid form");
