@@ -1,15 +1,16 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <span>
 #include <stdexcept>
 #include <vector>
-#include <iostream>
 
 class Reader {
 
 private:
-  const std::span<const uint8_t> data;
+  const std::span<const uint8_t>
+      data; // we use spans so that we can split the viewing window easier.
 
   size_t pos = 0;
 
@@ -35,7 +36,7 @@ public:
     return data[pos++];
   }
 
-  void skip(size_t n) { 
+  void skip(size_t n) {
     if (pos + n > data.size())
       throw std::runtime_error("skip past end");
     pos += n;
@@ -90,6 +91,9 @@ private:
   Reader reader;
   std::string output;
 
+  std::vector<func_type> types;
+  std::vector<uint32_t> defined_functions;
+
 public:
   parser(const std::vector<uint8_t> &data) : reader(data) {}
 
@@ -101,12 +105,14 @@ public:
   }
 
   void parse_header() {
-    uint32_t magic = reader.read_byte() | reader.read_byte() << 8
-                   | reader.read_byte() << 16 | reader.read_byte() << 24;
-    uint32_t version = reader.read_byte() | reader.read_byte() << 8
-                     | reader.read_byte() << 16 | reader.read_byte() << 24;
-    if (magic   != 0x6D736100) throw std::runtime_error("Invalid magic header");
-    if (version != 0x00000001) throw std::runtime_error("Invalid Version");
+    uint32_t magic = reader.read_byte() | reader.read_byte() << 8 |
+                     reader.read_byte() << 16 | reader.read_byte() << 24;
+    uint32_t version = reader.read_byte() | reader.read_byte() << 8 |
+                       reader.read_byte() << 16 | reader.read_byte() << 24;
+    if (magic != 0x6D736100)
+      throw std::runtime_error("Invalid magic header");
+    if (version != 0x00000001)
+      throw std::runtime_error("Invalid Version");
   }
 
   void parse_section() {
@@ -115,21 +121,23 @@ public:
 
     switch (id) {
     case 1: {
-      auto types = parse_type_section(size);
+      parse_type_section(size);
       print_types(types);
       break;
     }
+    case 3:
+      parse_function_section(size);
+      break;
     default:
       reader.skip(size);
     }
     // include section_end passing
   }
 
-  std::vector<func_type> parse_type_section(size_t size) {
+  void parse_type_section(size_t size) {
     Reader r = reader.sub_reader(size);
 
     uint32_t count = r.read_u32_leb128();
-    std::vector<func_type> types;
 
     for (uint32_t i = 0; i < count; i++) {
       if (r.read_byte() != 0x60) {
@@ -139,49 +147,62 @@ public:
       func_type t;
 
       uint32_t param_count = r.read_u32_leb128();
-      for (int j = 0; j < param_count; j++) {
+      for (uint32_t j = 0; j < param_count; j++) {
         t.params.push_back(r.read_byte());
       }
 
       uint32_t result_count = r.read_u32_leb128();
-      for (int j = 0; j < result_count; j++) {
+      for (uint32_t j = 0; j < result_count; j++) {
         t.results.push_back(r.read_byte());
       }
       types.push_back(t);
     }
+  }
 
-    return types;
+  void parse_function_section(size_t size) {
+    Reader r = reader.sub_reader(size);
+
+    uint32_t count = r.read_u32_leb128();
+
+    for (uint32_t i = 0; i < count; i++) {
+      defined_functions.push_back(r.read_u32_leb128());
+    }
   }
 
   // TODO: other sections
 
-// -----------------------------output-----------------------------------------
+  // -----------------------------output-----------------------------------------
 
   std::string type_to_string(uint8_t t) {
     switch (t) {
-      case 0x7F: return "i32";
-      case 0x7E: return "i64";
-      case 0x7D: return "f32";
-      case 0x7C: return "f64";
-      default: return "unknown";
+    case 0x7F:
+      return "i32";
+    case 0x7E:
+      return "i64";
+    case 0x7D:
+      return "f32";
+    case 0x7C:
+      return "f64";
+    default:
+      return "unknown";
     }
   }
 
-  void print_types(const std::vector<func_type>& types) {
+  void print_types(const std::vector<func_type> &types) {
     for (size_t i = 0; i < types.size(); i++) {
       std::cout << "(type " << i << " (func";
 
       if (!types[i].params.empty()) {
         std::cout << " (param";
-        for (auto p : types[i].params) 
+        for (auto p : types[i].params)
           std::cout << " " << type_to_string(p);
- 
+
         std::cout << ")";
       }
- 
+
       if (!types[i].results.empty()) {
         std::cout << " (result";
-        for (auto p : types[i].results) 
+        for (auto p : types[i].results)
           std::cout << " " << type_to_string(p);
 
         std::cout << ")";
@@ -189,6 +210,4 @@ public:
       std::cout << "))\n";
     }
   }
-
-
 };
